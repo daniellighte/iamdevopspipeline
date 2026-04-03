@@ -36,7 +36,7 @@ jobs:
       - name: Run integration + E2E suite against staging
         run: npm run test:e2e -- --baseUrl https://iam-staging.onrender.com
         env:
-          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }} # Fixed line 40 syntax
+          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
 
   deploy-production:
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@v4 # Added missing checkout step
+      - uses: actions/checkout@v4
       - name: Deploy to Production (rolling update)
         run: curl -sf -X POST ${{ secrets.RENDER_PROD_DEPLOY_HOOK }}
 
