@@ -38,6 +38,8 @@ jobs:
         run: curl -sf -X POST ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
       - name: Run integration + E2E suite against staging
         run: npm run test:e2e -- --baseUrl https://iam-staging.onrender.com
+env:
+  JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}run: npm run test:e2e -- --baseUrl https://iam-staging.onrender.com
         env: { JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }} }
 
   deploy-production:
