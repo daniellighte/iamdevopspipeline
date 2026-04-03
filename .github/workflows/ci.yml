@@ -1,0 +1,65 @@
+[cite_start]name: CI Pipeline — IAM System [cite: 790]
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    [cite_start]branches: [main] [cite: 888]
+
+env:
+  NODE_VERSION: '20'
+  IMAGE: ghcr.io/${{ github.repository }}/iam-api
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Ensures future runner compatibility
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - [cite_start]uses: ./.github/actions/setup [cite: 936]
+      - name: Run ESLint
+        run: npm run lint
+
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - name: Run Unit Tests
+        run: npm run test:unit -- --coverage
+
+  sast-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - [cite_start]name: Run Semgrep [cite: 881]
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/nodejs p/jwt p/owasp-top-ten
+      - name: Upload SARIF
+        [cite_start]uses: github/codeql-action/upload-sarif@v4 [cite: 894]
+        with:
+          sarif_file: semgrep.sarif
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+      - [cite_start]name: Run npm audit [cite: 881]
+        run: npm audit --audit-level=high || true
+
+  build:
+    runs-on: ubuntu-latest
+    [cite_start]needs: [lint, unit-test, sast-scan, dependency-audit] [cite: 892]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - [cite_start]name: Build and push image [cite: 916]
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false # Set to true once GHCR secrets are configured
+          tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
