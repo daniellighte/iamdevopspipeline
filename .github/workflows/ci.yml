@@ -1,0 +1,111 @@
+name: CI Pipeline — IAM System
+
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  NODE_VERSION: '20'
+  IMAGE: ghcr.io/${{ github.repository }}/iam-api
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  # ── Shared setup composite action ────────────────────────────────────
+  # Defined in .github/actions/setup/action.yml (reusable composite action)
+
+  lint:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: ./.github/actions/setup        # composite: checkout + npm cache
+      - run: npm run lint
+
+  unit-test:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: ./.github/actions/setup
+      - run: npm run test:unit -- --coverage
+      - uses: actions/upload-artifact@v4
+        with: { name: coverage-report, path: coverage/ }
+
+  sast-scan:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, security-events: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: returntocorp/semgrep-action@v1
+        with:
+          config: p/nodejs p/jwt p/owasp-top-ten
+          generateSarif: '1'
+      - uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: semgrep.sarif }
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    permissions: { contents: read }
+    steps:
+      - uses: ./.github/actions/setup
+      - run: npm audit --audit-level=high
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [lint, unit-test, sast-scan, dependency-audit]
+    if: github.event_name == 'pull_request'
+    permissions: { contents: read, packages: write }
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push (immutable SHA tag)
+        id: push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true          # enables SPDX SBOM generation
+
+  container-scan:
+    runs-on: ubuntu-latest
+    needs: build
+    permissions: { security-events: write }
+    steps:
+      - uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE }}:sha-${{ github.sha }}
+          format: sarif
+          output: trivy.sarif
+          severity: CRITICAL,HIGH
+          exit-code: '1'           # fails pipeline on CRITICAL CVE
+      - uses: github/codeql-action/upload-sarif@v3
+        with: { sarif_file: trivy.sarif }
+
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: build
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: test_pw, POSTGRES_DB: iam_test }
+        options: --health-cmd pg_isready --health-interval 10s
+    steps:
+      - uses: ./.github/actions/setup
+      - run: npm run test:integration
+        env:
+          DATABASE_URL: postgres://postgres:test_pw@localhost:5432/iam_test
+          JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
