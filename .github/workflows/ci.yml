@@ -104,8 +104,10 @@ jobs:
         env: { POSTGRES_PASSWORD: test_pw, POSTGRES_DB: iam_test }
         options: --health-cmd pg_isready --health-interval 10s
     steps:
-      - uses: ./.github/actions/setup
-      - run: npm run test:integration
+  - uses: actions/checkout@v4   
+
+  - uses: ./.github/actions/setup
+  - run: npm run lint
         env:
           DATABASE_URL: postgres://postgres:test_pw@localhost:5432/iam_test
           JWT_SECRET: ${{ secrets.TEST_JWT_SECRET }}
