@@ -1,0 +1,35 @@
+[cite_start]name: CD Pipeline — IAM System [cite: 791]
+
+on:
+  push:
+    [cite_start]branches: [main] [cite: 948]
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    [cite_start]environment: development [cite: 959]
+    steps:
+      - uses: actions/checkout@v4
+      - [cite_start]name: Smoke test [cite: 961]
+        run: |
+          curl --fail https://iam-dev.onrender.com/health || exit 1
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    [cite_start]needs: deploy-dev [cite: 967]
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - [cite_start]name: Run E2E tests [cite: 968]
+        run: npm run test:e2e
+        env:
+          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    [cite_start]environment: production [cite: 980]
+    steps:
+      - uses: actions/checkout@v4
+      - [cite_start]name: Deploy to Production [cite: 981]
+        run: echo "Deploying to production..."
