@@ -1,0 +1,20 @@
+name: Setup Node Environment
+[cite_start]description: Reusable composite action for Node.js setup and dependency installation [cite: 936]
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - [cite_start]name: Cache npm dependencies [cite: 928]
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: cache-${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+    - name: Install dependencies
+      run: npm ci
+      shell: bash
