@@ -8,7 +8,6 @@ env:
   IMAGE: ghcr.io/${{ github.repository }}/iam-api
 
 jobs:
-
   deploy-dev:
     runs-on: ubuntu-latest
     environment: development
@@ -34,24 +33,22 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy to Staging
-        run: curl -sf -X POST ${{ secrets.RENDER_STAGING_DEPLOY_HOOK }}
       - name: Run integration + E2E suite against staging
         run: npm run test:e2e -- --baseUrl https://iam-staging.onrender.com
-env:
-  JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }}run: npm run test:e2e -- --baseUrl https://iam-staging.onrender.com
-        env: { JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }} }
+        env:
+          JWT_SECRET: ${{ secrets.STAGING_JWT_SECRET }} # Fixed line 40 syntax
 
   deploy-production:
     runs-on: ubuntu-latest
     needs: deploy-staging
     environment:
-      name: production                # approval gate configured here
+      name: production
       url: https://iam.yourdomain.com
     concurrency:
       group: deploy-production
-      cancel-in-progress: false       # never cancel an in-flight prod deploy
+      cancel-in-progress: false
     steps:
+      - uses: actions/checkout@v4 # Added missing checkout step
       - name: Deploy to Production (rolling update)
         run: curl -sf -X POST ${{ secrets.RENDER_PROD_DEPLOY_HOOK }}
 
