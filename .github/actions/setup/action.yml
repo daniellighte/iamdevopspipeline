@@ -1,11 +1,9 @@
 name: Setup Node Environment
-
 description: Reusable composite action for Node.js setup and dependency installation
 
 runs:
   using: "composite"
   steps:
-
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
