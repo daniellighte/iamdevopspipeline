@@ -1,16 +1,17 @@
 name: Setup Node Environment
 
+description: Reusable composite action for Node.js setup and dependency installation
+
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
 
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
         node-version: 20
 
-    - name: Cache npm
+    - name: Cache npm dependencies
       uses: actions/cache@v4
       with:
         path: ~/.npm
